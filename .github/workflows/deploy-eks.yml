@@ -6,9 +6,9 @@ on:
   workflow_dispatch: {}
 
 env:
-  ECR_REPO_FRONTEND: tienda-perritos-frontend
-  ECR_REPO_BACKEND: tienda-perritos-backend
-  ECR_REPO_DB: tienda-perritos-db
+  ECR_REPO_FRONTEND: tienda-perrito-frontend
+  ECR_REPO_BACKEND: tienda-perrito-backend
+  ECR_REPO_DB: tienda-perrito-db
 
 jobs:
   build-frontend:

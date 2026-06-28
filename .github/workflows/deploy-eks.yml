@@ -29,8 +29,8 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           cd frontend
-          docker build -t $ECR_REGISTRY/tienda-perritos-frontend:${IMAGE_TAG} .
-          docker push $ECR_REGISTRY/tienda-perritos-frontend:${IMAGE_TAG}
+          docker build -t $ECR_REGISTRY/tienda-perrito-frontend:${IMAGE_TAG} .
+          docker push $ECR_REGISTRY/tienda-perrito-frontend:${IMAGE_TAG}
 
   build-backend:
     runs-on: ubuntu-latest
@@ -50,8 +50,8 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           cd backend
-          docker build -t $ECR_REGISTRY/tienda-perritos-backend:${IMAGE_TAG} .
-          docker push $ECR_REGISTRY/tienda-perritos-backend:${IMAGE_TAG}
+          docker build -t $ECR_REGISTRY/tienda-perrito-backend:${IMAGE_TAG} .
+          docker push $ECR_REGISTRY/tienda-perrito-backend:${IMAGE_TAG}
 
   deploy:
     runs-on: ubuntu-latest

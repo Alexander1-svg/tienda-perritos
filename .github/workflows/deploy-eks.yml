@@ -8,7 +8,7 @@ on:
 env:
   ECR_REPO_FRONTEND: tienda-perrito-frontend
   ECR_REPO_BACKEND: tienda-perrito-backend
-  ECR_REPO_DB: tienda-perrito-db
+  ECR_REPO_DB: tienda-perrito-bd
 
 jobs:
   build-frontend:
@@ -87,14 +87,14 @@ jobs:
           kubectl apply -f k8s/backend-deployment.yaml -n $NS
           kubectl apply -f k8s/backend-service.yaml -n $NS
           kubectl set image deployment/tienda-backend \
-            backend=$ECR_REGISTRY/tienda-perritos-backend:${IMAGE_TAG} -n $NS
+            backend=$ECR_REGISTRY/tienda-perrito-backend:${IMAGE_TAG} -n $NS
           kubectl rollout status deployment/tienda-backend -n $NS --timeout=60s || true
           kubectl get pods -n $NS
           kubectl describe pods -l app=tienda-backend -n $NS
           kubectl apply -f k8s/frontend-deployment.yaml -n $NS
           kubectl apply -f k8s/frontend-service.yaml -n $NS
           kubectl set image deployment/tienda-frontend \
-            frontend=$ECR_REGISTRY/tienda-perritos-frontend:${IMAGE_TAG} -n $NS
+            frontend=$ECR_REGISTRY/tienda-perrito-frontend:${IMAGE_TAG} -n $NS
           kubectl rollout status deployment/tienda-frontend -n $NS
       - name: Aplicar HPA
         env:

@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: mysql
-          image: 542768639545.dkr.ecr.us-east-1.amazonaws.com/tienda-perrito-bd:eks-v1 # Colocar uri de tu imagen en ECR
+          image: 975049887856.dkr.ecr.us-east-1.amazonaws.com/tienda-perrito-bd:latest # Colocar uri de tu imagen en ECR
           ports:
             - containerPort: 3306
           env:

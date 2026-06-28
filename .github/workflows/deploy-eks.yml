@@ -11,123 +11,109 @@ env:
   ECR_REPO_DB: tienda-perrito-bd
 
 jobs:
-  build-frontend:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-      - id: login-ecr
+
+      - name: Login a Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-      - run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Definir tag de imagen
+        run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
       - name: Build & push FRONTEND
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           cd frontend
-          docker build -t $ECR_REGISTRY/tienda-perrito-frontend:${IMAGE_TAG} .
-          docker push $ECR_REGISTRY/tienda-perrito-frontend:${IMAGE_TAG}
+          docker build -t $ECR_REGISTRY/$ECR_REPO_FRONTEND:${IMAGE_TAG} .
+          docker push $ECR_REGISTRY/$ECR_REPO_FRONTEND:${IMAGE_TAG}
 
-  build-backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-      - id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-      - run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
       - name: Build & push BACKEND
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           cd backend
-          docker build -t $ECR_REGISTRY/tienda-perrito-backend:${IMAGE_TAG} .
-          docker push $ECR_REGISTRY/tienda-perrito-backend:${IMAGE_TAG}
-  build-db:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-      - id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-      - run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+          docker build -t $ECR_REGISTRY/$ECR_REPO_BACKEND:${IMAGE_TAG} .
+          docker push $ECR_REGISTRY/$ECR_REPO_BACKEND:${IMAGE_TAG}
+
       - name: Build & push DB
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           cd db
-          docker build -t $ECR_REGISTRY/tienda-perrito-bd:${IMAGE_TAG} .
-          docker push $ECR_REGISTRY/tienda-perrito-bd:${IMAGE_TAG}
+          docker build -t $ECR_REGISTRY/$ECR_REPO_DB:${IMAGE_TAG} .
+          docker push $ECR_REGISTRY/$ECR_REPO_DB:${IMAGE_TAG}
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: [build-frontend, build-backend, build-db]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-      - id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-      - run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
-      - uses: azure/setup-kubectl@v4
+      - name: Instalar kubectl
+        uses: azure/setup-kubectl@v4
         with:
           version: v1.29.0
-      - name: Configurar kubeconfig
+
+      - name: Configurar kubeconfig para EKS
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
         run: |
           aws eks update-kubeconfig \
-            --region ${{ secrets.AWS_REGION }} \
-            --name ${{ secrets.EKS_CLUSTER_NAME }}
-      - name: Aplicar manifests
+            --region $AWS_REGION \
+            --name $EKS_CLUSTER_NAME
+
+      - name: Aplicar manifests base
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          NS: ${{ secrets.EKS_NAMESPACE }}
+          EKS_NAMESPACE: ${{ secrets.EKS_NAMESPACE }}
         run: |
           kubectl apply -f k8s/namespace.yaml
-          kubectl apply -f k8s/mysql-secret.yaml -n $NS
-          kubectl apply -f k8s/mysql-deployment.yaml -n $NS
-          kubectl apply -f k8s/mysql-service.yaml -n $NS
-          kubectl apply -f k8s/backend-deployment.yaml -n $NS
-          kubectl apply -f k8s/backend-service.yaml -n $NS
+          kubectl apply -f k8s/mysql-secret.yaml -n $EKS_NAMESPACE
+          kubectl apply -f k8s/mysql-deployment.yaml -n $EKS_NAMESPACE
+          kubectl apply -f k8s/mysql-service.yaml -n $EKS_NAMESPACE
+
+      - name: Actualizar BACKEND en EKS
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          EKS_NAMESPACE: ${{ secrets.EKS_NAMESPACE }}
+        run: |
+          kubectl apply -f k8s/backend-deployment.yaml -n $EKS_NAMESPACE
+          kubectl apply -f k8s/backend-service.yaml -n $EKS_NAMESPACE
           kubectl set image deployment/tienda-backend \
-            backend=$ECR_REGISTRY/tienda-perrito-backend:${IMAGE_TAG} -n $NS
-          kubectl rollout status deployment/tienda-backend -n $NS --timeout=60s || true
-          kubectl get pods -n $NS
-          kubectl describe pods -l app=tienda-backend -n $NS
-          kubectl apply -f k8s/frontend-deployment.yaml -n $NS
-          kubectl apply -f k8s/frontend-service.yaml -n $NS
+            backend=$ECR_REGISTRY/$ECR_REPO_BACKEND:${IMAGE_TAG} \
+            -n $EKS_NAMESPACE
+          kubectl rollout status deployment/tienda-backend -n $EKS_NAMESPACE
+
+      - name: Actualizar FRONTEND en EKS
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          EKS_NAMESPACE: ${{ secrets.EKS_NAMESPACE }}
+        run: |
+          kubectl apply -f k8s/frontend-deployment.yaml -n $EKS_NAMESPACE
+          kubectl apply -f k8s/frontend-service.yaml -n $EKS_NAMESPACE
           kubectl set image deployment/tienda-frontend \
-            frontend=$ECR_REGISTRY/tienda-perrito-frontend:${IMAGE_TAG} -n $NS
-          kubectl rollout status deployment/tienda-frontend -n $NS
-          kubectl set image deployment/tienda-db \
-            mysql=$ECR_REGISTRY/tienda-perrito-bd:${IMAGE_TAG} -n $NS
+            frontend=$ECR_REGISTRY/$ECR_REPO_FRONTEND:${IMAGE_TAG} \
+            -n $EKS_NAMESPACE
+          kubectl rollout status deployment/tienda-frontend -n $EKS_NAMESPACE
+
       - name: Aplicar HPA
         env:
-          NS: ${{ secrets.EKS_NAMESPACE }}
+          EKS_NAMESPACE: ${{ secrets.EKS_NAMESPACE }}
         run: |
-          kubectl apply -f k8s/backend-hpa.yaml -n $NS
-          kubectl apply -f k8s/frontend-hpa.yaml -n $NS
-      - name: Estado final
+          if [ -f k8s/backend-hpa.yaml ]; then kubectl apply -f k8s/backend-hpa.yaml -n $EKS_NAMESPACE; fi
+          if [ -f k8s/frontend-hpa.yaml ]; then kubectl apply -f k8s/frontend-hpa.yaml -n $EKS_NAMESPACE; fi
+
+      - name: Ver pods y servicios
         env:
-          NS: ${{ secrets.EKS_NAMESPACE }}
+          EKS_NAMESPACE: ${{ secrets.EKS_NAMESPACE }}
         run: |
-          kubectl get pods -n $NS
-          kubectl get svc -n $NS
-          kubectl get hpa -n $NS || true
+          kubectl get pods -n $EKS_NAMESPACE
+          kubectl get svc -n $EKS_NAMESPACE
+          kubectl get hpa -n $EKS_NAMESPACE || true

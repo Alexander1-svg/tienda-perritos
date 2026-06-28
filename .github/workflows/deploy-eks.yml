@@ -117,7 +117,7 @@ jobs:
             frontend=$ECR_REGISTRY/tienda-perrito-frontend:${IMAGE_TAG} -n $NS
           kubectl rollout status deployment/tienda-frontend -n $NS
           kubectl set image deployment/tienda-db \
-            tienda-db=$ECR_REGISTRY/tienda-perrito-bd:${IMAGE_TAG} -n $NS
+            mysql-db=$ECR_REGISTRY/tienda-perrito-bd:${IMAGE_TAG} -n $NS
       - name: Aplicar HPA
         env:
           NS: ${{ secrets.EKS_NAMESPACE }}

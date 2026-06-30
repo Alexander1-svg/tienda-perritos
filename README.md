@@ -114,6 +114,9 @@ aws eks update-kubeconfig --region us-east-1 --name Cluster-tienda-perritos
 
 # Exponer el frontend localmente
 kubectl port-forward svc/tienda-frontend 8080:80 -n tienda
+
+# Amazon Configure
+aws configure
 ```
 
 Abre el navegador en: **http://localhost:8080**

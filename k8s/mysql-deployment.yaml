@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: mysql
-          image: 975049887856.dkr.ecr.us-east-1.amazonaws.com/tienda-perrito-bd:latest # Colocar uri de tu imagen en ECR
+          image: 849508003074.dkr.ecr.us-east-1.amazonaws.com/tienda-perrito-bd:latest
           ports:
             - containerPort: 3306
           env:
@@ -23,7 +23,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: mysql-secret
-                  key: MYSQL_ROOT_PASSWORD
+                  key: mysql-root-password 
           volumeMounts:
             - name: data
               mountPath: /var/lib/mysql

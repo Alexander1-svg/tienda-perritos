@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: 975049887856.dkr.ecr.us-east-1.amazonaws.com/tienda-perrito-backend:latest # Colocar uri de tu imagen en ECR
+          image: 849508003074.dkr.ecr.us-east-1.amazonaws.com/tienda-perrito-backend:latest # Colocar uri de tu imagen en ECR
           ports:
             - containerPort: 3001
           env:
@@ -27,7 +27,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: mysql-secret
-                  key: MYSQL_ROOT_PASSWORD
+                  key: mysql-root-password
             - name: DB_NAME
               value: "tienda_perritos"
             - name: DB_PORT
